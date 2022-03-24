@@ -32,7 +32,7 @@ def sigmaCalcFun(data):
 
     Returns
     -------
-    sigma : ndarray
+    sigmaArray : ndarray
         ndarray of size M by N containing calculated sigma values for all 
         sigmas and all sources
 
@@ -44,7 +44,7 @@ def sigmaCalcFun(data):
     for i in range(len(data)-3):
         sigmas.append(data[3+i])
     i = 0
-    sigma = np.zeros([len(sigmas[0]), len(RA)])
+    sigmaArray = np.zeros([len(sigmas[0]), len(RA)])
     total_time = 0
     while i <= len(RA)-1:
         start = time.time()
@@ -59,16 +59,16 @@ def sigmaCalcFun(data):
         for j in range(len(sigmas[0])):
             sigma = sigmas[0][j]
             if sum(SourcesInSquare) >= sigma+1:
-                sigma[j][i] = sigma/(np.pi*sortedDistances[int(sigma)]**2)
+                sigmaArray[j][i] = sigma/(np.pi*sortedDistances[int(sigma)]**2)
             else:
-                sigma[j][i] = float('NaN')
+                sigmaArray[j][i] = float('NaN')
         stop = time.time()
         total_time += stop-start
         if i % 100 == 0:
             print("Progress: {0:.2f}%".format(i/(len(RA)-1)*100))
             print("Elapsed time: {0:.1f}s".format(total_time))
         i += 1
-    return sigma
+    return sigmaArray
 
 
 def clusterFun(RA, DEC, sigma, SNsigma, SNlimit, min_c_size, ODSigma, Z=None):
@@ -391,7 +391,7 @@ def galcluster(filename=None, RAKey="RA", DECKey="DEC", method="sigma", sigmas=[
         DEC = dataset[DECKey]
         if zKey != None:
             Z = dataset[zKey]
-            missingZ = Z <= 0
+            missingZ = Z >= 0
             dataset = dataset[missingZ]
         else:
             Z = np.nan*np.ones(N_sources)
