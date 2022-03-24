@@ -71,7 +71,7 @@ def sigmaCalcFun(data):
     return sigmaArray
 
 
-def clusterFun(RA, DEC, sigma, SNsigma, SNlimit, min_c_size, ODSigma, Z=None):
+def clusterFun(RA, DEC, sigma, SNsigma, SNlimit, min_c_size, ODSigma, Z):
     """
     Function used to generate overdensity regions and cluster candidates
     
@@ -96,7 +96,8 @@ def clusterFun(RA, DEC, sigma, SNsigma, SNlimit, min_c_size, ODSigma, Z=None):
     ODSigma : int
         value of sigma used in sigma calculations
     Z : ndarray (optional)
-        ndarray of length N, containing redshift for all sources
+        ndarray of length N, containing redshift for all sources, if redshift
+        is not known input an array of length N containing nans
 
     Returns
     -------
@@ -158,57 +159,56 @@ def clusterFun(RA, DEC, sigma, SNsigma, SNlimit, min_c_size, ODSigma, Z=None):
             od.append(np.array([tcRA, tcDEC, tcZ, tcS, tcSN], dtype=object))
         tempC = np.empty(N_clustersDEC, dtype=object)
         countdec = 0
-        if Z != None:
-            for j in range(N_clustersDEC):
-                if len(clusterDec) == 0:
+        for j in range(N_clustersDEC):
+            if len(clusterDec) == 0:
+                countdec += 1
+                countz = 0
+                break
+            else:
+                try:
+                    if N_clustersDEC != 1:
+                        tempC[countdec] = np.array(
+                            [tcRA[countdec], tcDEC[countdec], tcZ[countdec], tcS[countdec], tcSN[countdec]])
+                    else:
+                        tempC[countdec] = np.array(
+                            [tcRA, tcDEC, tcZ, tcS, tcSN])
+                    if len(tempC[countdec][0]) > 1:
+                        sZS = np.argsort(tempC[countdec][2])
+                        tempC[countdec] = np.array([tempC[countdec][0][sZS], tempC[countdec][1][sZS],
+                                                   tempC[countdec][2][sZS], tempC[countdec][3][sZS], tempC[countdec][4][sZS]])
+                        clusterz = abs(
+                            (tempC[countdec][2][:-1]-tempC[countdec][2][1:])) >= 0.15*(1+tempC[countdec][2][:-1])
+                        N_clustersz = sum(clusterz)+1
+                    if N_clustersz != 1:
+                        climz = np.where(clusterz == True)
+                        t2cRA, t2cDEC, t2cZ, t2cS, t2cSN = np.split(tempC[countdec][0], climz[0]+1), np.split(tempC[countdec][1], climz[0]+1), np.split(
+                            tempC[countdec][2], climz[0]+1), np.split(tempC[countdec][3], climz[0]+1), np.split(tempC[countdec][4], climz[0]+1)
+                    else:
+                        t2cRA, t2cDEC, t2cZ, t2cS, t2cSN = tempC[countdec][0], tempC[countdec][
+                            1], tempC[countdec][2], tempC[countdec][3], tempC[countdec][4]
                     countdec += 1
                     countz = 0
+                except:
+                    N_clustersz = 0
+                    countdec += 1
+                    countz = 0
+                    pass
+
+            countz = 0
+            for k in range(N_clustersz):
+                if len(clusterz) == 0:
+                    countz += 1
                     break
-                else:
-                    try:
-                        if N_clustersDEC != 1:
-                            tempC[countdec] = np.array(
-                                [tcRA[countdec], tcDEC[countdec], tcZ[countdec], tcS[countdec], tcSN[countdec]])
-                        else:
-                            tempC[countdec] = np.array(
-                                [tcRA, tcDEC, tcZ, tcS, tcSN])
-                        if len(tempC[countdec][0]) > 1:
-                            sZS = np.argsort(tempC[countdec][2])
-                            tempC[countdec] = np.array([tempC[countdec][0][sZS], tempC[countdec][1][sZS],
-                                                       tempC[countdec][2][sZS], tempC[countdec][3][sZS], tempC[countdec][4][sZS]])
-                            clusterz = abs(
-                                (tempC[countdec][2][:-1]-tempC[countdec][2][1:])) >= 0.15*(1+tempC[countdec][2][:-1])
-                            N_clustersz = sum(clusterz)+1
-                        if N_clustersz != 1:
-                            climz = np.where(clusterz == True)
-                            t2cRA, t2cDEC, t2cZ, t2cS, t2cSN = np.split(tempC[countdec][0], climz[0]+1), np.split(tempC[countdec][1], climz[0]+1), np.split(
-                                tempC[countdec][2], climz[0]+1), np.split(tempC[countdec][3], climz[0]+1), np.split(tempC[countdec][4], climz[0]+1)
-                        else:
-                            t2cRA, t2cDEC, t2cZ, t2cS, t2cSN = tempC[countdec][0], tempC[countdec][
-                                1], tempC[countdec][2], tempC[countdec][3], tempC[countdec][4]
-                        countdec += 1
-                        countz = 0
-                    except:
-                        N_clustersz = 0
-                        countdec += 1
-                        countz = 0
-                        pass
-    
-                countz = 0
-                for k in range(N_clustersz):
-                    if len(clusterz) == 0:
+                if t2cRA[countz].size >= min_c_size:
+                    if N_clustersz != 1:
+                        tc.append(np.array(
+                            [t2cRA[countz], t2cDEC[countz], t2cZ[countz], t2cS[countz], t2cSN[countz]]))
                         countz += 1
-                        break
-                    if t2cRA[countz].size >= min_c_size:
-                        if N_clustersz != 1:
-                            tc.append(np.array(
-                                [t2cRA[countz], t2cDEC[countz], t2cZ[countz], t2cS[countz], t2cSN[countz]]))
-                            countz += 1
-                        else:
-                            tc.append(np.array([t2cRA, t2cDEC, t2cZ, t2cS, t2cSN]))
-                            countz += 1
                     else:
+                        tc.append(np.array([t2cRA, t2cDEC, t2cZ, t2cS, t2cSN]))
                         countz += 1
+                else:
+                    countz += 1
     clusterCands = tc
     ODRs = od
     return clusterCands, ODRs
@@ -393,6 +393,7 @@ def galcluster(filename=None, RAKey="RA", DECKey="DEC", method="sigma", sigmas=[
             Z = dataset[zKey]
             missingZ = Z >= 0
             dataset = dataset[missingZ]
+            Z = dataset[zKey]
         else:
             Z = np.nan*np.ones(N_sources)
         
@@ -496,7 +497,7 @@ def galcluster(filename=None, RAKey="RA", DECKey="DEC", method="sigma", sigmas=[
                 stdSigmaList.append(sigmastd)
                 SignalToNoiseList.append(SignalToNoiseSigma)
                 tc, od = clusterFun(
-                    RA, DEC, Z, sigmaList[i], SignalToNoiseSigma, SNlimit[i], min_c_size, sigmas[i])
+                    RA, DEC, sigmaList[i], SignalToNoiseSigma, SNlimit[i], min_c_size, sigmas[i], Z=Z)
                 clusterList.append(tc)
                 ODRlist.append(od)
                 largestSourceID = SignalToNoiseSigma >= SNlimit[i]
