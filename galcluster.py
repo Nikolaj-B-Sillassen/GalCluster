@@ -643,6 +643,35 @@ def galcluster(filename=None, RAKey="RA", DECKey="DEC", method="sigma", sigmas=[
                         prevN += 1
                     t = tb.vstack([t, ttemp])
                 t.write(saveODRName, format='fits')
+            saveDS9 = input(
+                "Do you wish to save the candidates in a DS9 region .reg file? (y/n): ")
+            if saveDS9.lower() == "y" or saveDS9.lower() == "yes":
+                from astropy.coordinates import SkyCoord,FK5,Longitude,Latitude
+                import astropy.units as u
+                import regions
+                saveDS9name = input("Please input the filename for the DS9 region file: ")
+                regionsList = regions.Regions([])
+                count = 1
+                for j in range(len(sigmas)):
+                    if zKey != None:
+                        for i in range(len(clusterList[j])):
+                            for k in range(len(clusterList[j][i][0])):
+                                ra = Longitude(clusterList[j][i][0][k],unit=u.deg)
+                                dec = Latitude(clusterList[j][i][1][k],unit=u.deg)
+                                coords = SkyCoord(ra,dec,frame=FK5)
+                                region = regions.CircleSkyRegion(coords,radius=1.5*u.arcsec,meta={"label":"#{0},z={1}".format(count,clusterList[j][i][2][k])})
+                                regionsList.append(region)
+                            count+=1
+                    else:
+                        for i in range(len(clusterList[j])):
+                            for j in range(len(clusterList[j][i][0])):
+                                ra = Longitude(clusterList[j][i][0][k],unit=u.deg)
+                                dec = Latitude(clusterList[j][i][1][k],unit=u.deg)
+                                coords = SkyCoord(ra,dec,frame=FK5)
+                                region = regions.CircleSkyRegion(coords,radius=1.5*u.arcsec,meta={"label":"#{0}".format(i+1)})
+                                regionsList.append(region)
+                            count += 1
+                regionsList.write(saveDS9name,overwrite=True,format='ds9')
             if zKey != None:
                 return [RA, DEC, Z, sigmaList, SignalToNoiseList], clusterList, ODRlist
             else:
@@ -686,10 +715,15 @@ def galcluster(filename=None, RAKey="RA", DECKey="DEC", method="sigma", sigmas=[
             g = fit_g(g_init, np.log10(binCenters), hist[0])
             mean,std = g.mean.value, g.stddev.value
             
+            try:
+                selection = SNlimit[0]*std+mean
+            except:
+                selection = SNlimit*std+mean
             # Histogram of distances to the third neighbor
             plt.figure()
             plt.plot(np.log10(binCenters),hist[0],'r',label="Histogram")
             plt.plot(np.linspace(min(np.log10(binCenters)),max(np.log10(binCenters)),100),g(np.linspace(min(np.log10(binCenters)),max(np.log10(binCenters)),100)),'k',label="Gaussian fit")
+            plt.plot([selection, selection],[min(hist[0]),max(hist[0])],'--',label="SNlimit",color="gray")
             plt.xlabel("$\mathrm{log}_{10}$ 1/(%d-dist)" % (sigmas[0]),fontsize=14)
             plt.ylabel("N",fontsize=14)
             plt.title("Histogram of $\mathrm{log}_{10}$ 1/(%d-dist)" % sigmas[0],fontsize=18)
@@ -701,16 +735,16 @@ def galcluster(filename=None, RAKey="RA", DECKey="DEC", method="sigma", sigmas=[
             except:
                 ids = (np.log10(distances)-mean)/std >= SNlimit
             epsVal = 1/min(distances[ids])
-            print("eps at chosen significance limit: {0:.3f}".format(epsVal))
+            print("Eps at chosen significance limit: {0:.3f}".format(epsVal))
             
             # eps could be an input parameter, or interactive selection, or machine selected
             y = np.zeros((X.shape[0], 1))
             model = cluster.DBSCAN(eps=epsVal, min_samples=min_c_size,n_jobs=-1).fit(X)
             centroids = model.components_
             cls = model.labels_
-            cRAs = np.empty(len(cls)-1, dtype=object)
-            cDECs = np.empty(len(cls)-1, dtype=object)
-            cZs = np.empty(len(cls)-1, dtype=object)
+            cRAs = np.empty(max(cls)+1, dtype=object)
+            cDECs = np.empty(max(cls)+1, dtype=object)
+            cZs = np.empty(max(cls)+1, dtype=object)
             i = 0
             defLabelList = []
             for label in cls:
@@ -730,7 +764,7 @@ def galcluster(filename=None, RAKey="RA", DECKey="DEC", method="sigma", sigmas=[
                         cDECs[label] = np.append(cDECs[label],X[i][1]*stdDEC+meanDEC)
                         cZs[label] = np.append(cZs[label],z_phot[i])
                 i = i + 1
-            
+            print("Number of overdense regions found: {}".format(max(defLabelList)+1))
             cs = np.empty((len(cRAs)), dtype=object)
             tcs = np.empty(0, dtype=int)
             for i in range(len(cs)):
@@ -801,10 +835,10 @@ def galcluster(filename=None, RAKey="RA", DECKey="DEC", method="sigma", sigmas=[
                 plt.scatter(clusterCands[i][0], clusterCands[i][1], 40, facecolors="none", edgecolors=colors[i])
                 if zKey != None:
                     plt.annotate("#{0:d},z~={1:.2f}".format(i+1, np.median(clusterCands[i][2])), [
-                                 np.mean(clusterCands[i][0]), min(clusterCands[i][1])], color=colors[i])
+                                 np.mean(clusterCands[i][0])+0.1*(max(RA)-min(RA)), min(clusterCands[i][1])-0.05*(max(DEC)-min(DEC))], color=colors[i])
                 else:
                     plt.annotate("#{0:d}".format(i+1), [
-                                 np.mean(clusterCands[i][0]), min(clusterCands[i][1])], color=colors[i])
+                                 np.mean(clusterCands[i][0])+0.1*(max(RA)-min(RA)), np.mean(clusterCands[i][1])-0.05*(max(DEC)-min(DEC))], color=colors[i])
             plt.xlim([max(RA), min(RA)])
             plt.ylim([min(DEC), max(DEC)])
             plt.ylabel("DEC [deg]",fontsize=14)
@@ -850,4 +884,29 @@ def galcluster(filename=None, RAKey="RA", DECKey="DEC", method="sigma", sigmas=[
                         t = tb.vstack([t, tabletemp])
                         prevN += 1
                 t.write(saveODRName, format='fits')
+            saveDS9 = input(
+                "Do you wish to save the candidates in a DS9 region .reg file? (y/n): ")
+            if saveDS9.lower() == "y" or saveDS9.lower() == "yes":
+                from astropy.coordinates import SkyCoord,FK5,Longitude,Latitude
+                import astropy.units as u
+                import regions
+                saveDS9name = input("Please input the filename for the DS9 region file: ")
+                regionsList = regions.Regions([])
+                if zKey != None:
+                    for i in range(len(clusterCands)):
+                        for j in range(len(clusterCands[i][0])):
+                            ra = Longitude(clusterCands[i][0][j],unit=u.deg)
+                            dec = Latitude(clusterCands[i][1][j],unit=u.deg)
+                            coords = SkyCoord(ra,dec,frame=FK5)
+                            region = regions.CircleSkyRegion(coords,radius=1.5*u.arcsec,meta={"label":"#{0},z={1}".format(i+1,clusterCands[i][2][j])})
+                            regionsList.append(region)
+                else:
+                    for i in range(len(clusterCands)):
+                        for j in range(len(clusterCands[i][0])):
+                            ra = Longitude(clusterCands[i][0][j],unit=u.deg)
+                            dec = Latitude(clusterCands[i][1][j],unit=u.deg)
+                            coords = SkyCoord(ra,dec,frame=FK5)
+                            region = regions.CircleSkyRegion(coords,radius=1.5*u.arcsec,meta={"label":"#{0}".format(i+1)})
+                            regionsList.append(region)
+                regionsList.write(saveDS9name,overwrite=True,format='ds9')
             return Lcs, Lcenters, clusterCands
