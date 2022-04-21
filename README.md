@@ -1,4 +1,4 @@
-# Synthesis-Project
+# Galcluster
 Synthesis project of Nikolaj Bjerregaard Sillassen, Spring 2022 at DTU
 
 A program to identify cluster candidates given an astrophysical dataset in .fits format.
