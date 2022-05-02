@@ -4,9 +4,6 @@ Synthesis project of Nikolaj Bjerregaard Sillassen, Spring 2022 at DTU
 A program to identify cluster candidates given an astrophysical dataset in .fits format.
 Can be run either as an interactive program, or as a function by inputting the necessary variables.
 
-The program can run with or without preselection in flux or mag, it is highly recommended to use preselection to avoid large data.
-It can also run with or without minimum preselection in redshifts.
-
 Two methods of identification, SigmaN and K_means.
 SigmaN uses the distance between each source and the N'th nearest neighbor, following:
 SigmaN = N/(Pi d_(Nth neighbor)^2)
@@ -20,7 +17,7 @@ Program created during Synthesis Project at DTU Space, in spring 2022
     
 ## Function description:
 ```     
-galcluster(filename=None, RAKey="RA", DECKey="DEC", method="sigma", sigmas=[5,10], multi_processing=True, mute_plots=False, SNlimit=[5,7],min_c_size=3,zKey=None)
+galcluster(filename=None, RAKey="RA", DECKey="DEC", method="sigma", sigmas=[5,10], multi_processing=True, mute_plots=False, SNlimit=[5,5],min_c_size=3,zKey=None)
 
     ### Input Parameters
 

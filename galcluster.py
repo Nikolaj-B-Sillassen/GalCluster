@@ -125,7 +125,6 @@ def clusterFun(RA, DEC, sigma, SNsigma, SNlimit, min_c_size, ODSigma, Z):
     RAsortedIDs = np.argsort(LRA)
     sLRA, sLDEC, sLZ, ssigma, sSNS = LRA[RAsortedIDs], LDEC[RAsortedIDs], LZ[
         RAsortedIDs], largestSigma[RAsortedIDs], largestOD[RAsortedIDs]
-    # & (abs(sLDEC5[:-1]-sLDEC5[1:])>=0.01)# & (abs(sLZ5[:-1]-sLZ5[1:])>=0.1)
     cluster = (abs(sLRA[:-1]-sLRA[1:]) >= ODSigma/500)
     clusterLim = np.where(cluster == True)
     N_clustersRA = sum(cluster)+1
@@ -217,7 +216,7 @@ def clusterFun(RA, DEC, sigma, SNsigma, SNlimit, min_c_size, ODSigma, Z):
     return clusterCands, ODRs
 
 
-def galcluster(filename=None, RAKey="RA", DECKey="DEC", method="sigma", sigmas=[5, 10], multi_processing=True, mute_plots=False, SNlimit=[5, 7], min_c_size=3, zKey=None):
+def galcluster(filename=None, RAKey="RA", DECKey="DEC", method="sigma", sigmas=[5, 10], multi_processing=True, mute_plots=False, SNlimit=[5, 5], min_c_size=3, zKey=None):
     """
     Automated Identification of Galaxy Clusters
     galcluster v0.1
@@ -434,7 +433,6 @@ def galcluster(filename=None, RAKey="RA", DECKey="DEC", method="sigma", sigmas=[
                         else:
                             for k in range(len(sigmas)):
                                 sigmaList[k] = np.concatenate((sigmaList[k],sigmaTotal[k]))
-                            #sigmaList = np.vstack((sigmaList, sigmaTotal))
                         print("Progress: {0:.2f}%, time: {1:.2f}s".format(
                             (j+1)/(N_sources/10000)*100, stop-start1))
 
@@ -540,7 +538,7 @@ def galcluster(filename=None, RAKey="RA", DECKey="DEC", method="sigma", sigmas=[
                     yscale = M[1, 1]
                     maxSN = np.floor(np.nanmax(SignalToNoiseList[i]))
                     plt.pcolormesh(meshRA, meshDEC, intSN, cmap=new_cmp,
-                                   shading="gouraud", vmin=-2, vmax=maxSN)  # ,antialiased=True)
+                                   shading="gouraud", vmin=-2, vmax=maxSN)
                     cbar = plt.colorbar()
 
                     for j in range(len(ODRlist[i])):
@@ -638,7 +636,7 @@ def galcluster(filename=None, RAKey="RA", DECKey="DEC", method="sigma", sigmas=[
                     ttemp = tb.Table()
                     for j in range(len(ODRlist[i])):
                         tabletemp = tb.Table(data=[np.ones(len(ODRlist[i][j][0]))*sigmas[i], np.ones(len(ODRlist[i][j][0]))*prevN, ODRlist[i][j][0].astype(float), ODRlist[i][j][1].astype(
-                            float), ODRlist[i][j][3].astype(float), ODRlist[i][j][4].astype(float), ODRlist[i][j][2].astype(float)], names=("SigmaN", "ODR_num", "RA", "DEC", "Sigma", "SNR_Sigma", "z_phot"))
+                            float), ODRlist[i][j][3].astype(float), ODRlist[i][j][4].astype(float), ODRlist[i][j][2].astype(float)], names=("SigmaN", "ODR_num", "RA", "DEC", "Sigma", "SNR_Sigma", "z"))
                         ttemp = tb.vstack([ttemp, tabletemp])
                         prevN += 1
                     t = tb.vstack([t, ttemp])
@@ -683,14 +681,6 @@ def galcluster(filename=None, RAKey="RA", DECKey="DEC", method="sigma", sigmas=[
                 z_phot = Z
             else:
                 z_phot = np.nan*np.ones(N_sources)
-            """
-            RAnnan = ~np.isnan(RA)
-            DECnnan = ~np.isnan(DEC)
-            Znnan = ~np.isnan(z_phot)
-            ids = RAnnan & DECnnan & Znnan
-            X = np.array([RA[ids],DEC[ids]])
-            z_phot = z_phot[ids]
-            """
             
             X = np.array([RA, DEC])
             # For accurate clustering, normalize data:
@@ -705,7 +695,7 @@ def galcluster(filename=None, RAKey="RA", DECKey="DEC", method="sigma", sigmas=[
             neigh = neighbors.NearestNeighbors(n_neighbors=sigmas[0],n_jobs=-1).fit(X)
             dists, ind = neigh.kneighbors(X)
             distances = [dists[i][min_c_size-1] for i in range(len(dists))]
-            distances = 1/np.asarray(distances)
+            distances = 1/(np.asarray(distances)**2)
             
             hist = np.histogram(distances,np.logspace(np.log10(min(distances)),np.log10(max(distances)),30))
             binCenters = np.mean(np.vstack([hist[1][0:-1], hist[1][1:]]), axis=0)
@@ -719,7 +709,7 @@ def galcluster(filename=None, RAKey="RA", DECKey="DEC", method="sigma", sigmas=[
                 selection = SNlimit[0]*std+mean
             except:
                 selection = SNlimit*std+mean
-            # Histogram of distances to the third neighbor
+            # Histogram of distances to the Nth neighbor
             plt.figure()
             plt.plot(np.log10(binCenters),hist[0],'r',label="Histogram")
             plt.plot(np.linspace(min(np.log10(binCenters)),max(np.log10(binCenters)),100),g(np.linspace(min(np.log10(binCenters)),max(np.log10(binCenters)),100)),'k',label="Gaussian fit")
@@ -734,10 +724,8 @@ def galcluster(filename=None, RAKey="RA", DECKey="DEC", method="sigma", sigmas=[
                 ids = (np.log10(distances)-mean)/std >= SNlimit[0]
             except:
                 ids = (np.log10(distances)-mean)/std >= SNlimit
-            epsVal = 1/min(distances[ids])
+            epsVal = np.sqrt(1/min(distances[ids]))
             print("Eps at chosen significance limit: {0:.3f}".format(epsVal))
-            
-            # eps could be an input parameter, or interactive selection, or machine selected
             y = np.zeros((X.shape[0], 1))
             model = cluster.DBSCAN(eps=epsVal, min_samples=min_c_size,n_jobs=-1).fit(X)
             centroids = model.components_
@@ -748,11 +736,6 @@ def galcluster(filename=None, RAKey="RA", DECKey="DEC", method="sigma", sigmas=[
             i = 0
             defLabelList = []
             for label in cls:
-                if X[i][0] >= (150.3415-meanRA)/stdRA and X[i][0] <= (150.3489-meanRA)/stdRA and X[i][1] >= (2.3314-meanDEC)/stdDEC and X[i][1] <= (2.3368-meanDEC)/stdDEC:
-                    test = label
-                if X[i][0] >= (150.2245-meanRA)/stdRA and X[i][0] <= (150.2400-meanRA)/stdRA and X[i][1] >= (2.335-meanDEC)/stdDEC and X[i][1] <= (2.357-meanDEC)/stdDEC:
-                    test2 = label
-                
                 if label != -1:
                     if label not in defLabelList:
                         cRAs[label] = X[i][0]*stdRA+meanRA
@@ -812,19 +795,8 @@ def galcluster(filename=None, RAKey="RA", DECKey="DEC", method="sigma", sigmas=[
             stop = time.time()
             print("Time elapsed: {0:.2f}s".format(stop-start))
             Lcs, Lcenters = cs[:], cls[:]
-            #Lcenters[0],Lcenters[1] = Lcenters[0]*stdRA+meanRA,Lcenters[1]*stdDEC+meanDEC
-            # plot data points color-coded by class, cluster markers and centroids
-            # hold(True)
-        
-            
             import random
             from scipy import interpolate
-            
-            """
-            meshRA, meshDEC = np.meshgrid(np.linspace(min(TcRAs),max(TcRAs),round(np.sqrt(len(TcRAs)))),np.linspace(min(TcDECs),max(TcDECs),round(np.sqrt(len(TcRAs)))))
-            interp = interpolate.NearestNDInterpolator(list(zip(TcRAs,TcDECs)),totalVariance[i])#,fill_value=-2)#,kind='cubic')
-            intSN = interp(meshRA,meshDEC)
-            """
             def get_colors(n): return list(
                 map(lambda i: "#" + "%06x" % random.randint(0x333333, 0x555555), range(n)))
             colors = get_colors(len(clusterCands))
@@ -857,7 +829,6 @@ def galcluster(filename=None, RAKey="RA", DECKey="DEC", method="sigma", sigmas=[
                             z_cut, 6, round((6-z_cut)/0.2)))
                         binCenters = np.mean(
                             np.vstack([hist[1][0:-1], hist[1][1:]]), axis=0)
-                        # plt.hist(ODRlist[i][j][2],bins=20)
                         plt.plot(binCenters, hist[0], 'o-')
                         plt.xlabel("z_phot")
                         plt.title("Histogram of redshift, RA: {0:.4f} DEC: {1:.4f}".format(
