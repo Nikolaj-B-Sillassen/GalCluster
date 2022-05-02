@@ -714,9 +714,9 @@ def galcluster(filename=None, RAKey="RA", DECKey="DEC", method="sigma", sigmas=[
             plt.plot(np.log10(binCenters),hist[0],'r',label="Histogram")
             plt.plot(np.linspace(min(np.log10(binCenters)),max(np.log10(binCenters)),100),g(np.linspace(min(np.log10(binCenters)),max(np.log10(binCenters)),100)),'k',label="Gaussian fit")
             plt.plot([selection, selection],[min(hist[0]),max(hist[0])],'--',label="SNlimit",color="gray")
-            plt.xlabel("$\mathrm{log}_{10}$ 1/(%d-dist)" % (sigmas[0]),fontsize=14)
+            plt.xlabel("$\mathrm{log}_{10} 1/(%d-\mathrm{dist}^2)$" % (sigmas[0]),fontsize=14)
             plt.ylabel("N",fontsize=14)
-            plt.title("Histogram of $\mathrm{log}_{10}$ 1/(%d-dist)" % sigmas[0],fontsize=18)
+            plt.title("Histogram of $\mathrm{log}_{10} 1/(%d-\mathrm{dist}^2)$" % sigmas[0],fontsize=18)
             plt.legend()
             
             # Choice of overdense regions:
