@@ -12,12 +12,12 @@ Whereas DBSCAN uses DBSCAN clustering [SKLEARN Documentation](https://scikit-lea
 In the end, you are given the possibility to save outputs in a fits file, and all identified clusters as a DS9 region file.
 
 Automated Identification of Galaxy Clusters
-galcluster v0.1
+GalCluster v0.1
 Program created during Synthesis Project at DTU Space, in spring 2022
     
 ## Function description:
 ```     
-galcluster(filename=None, RAKey="RA", DECKey="DEC", method="sigma", sigmas=[5,10], multi_processing=True, mute_plots=False, SNlimit=[5,5],min_c_size=3,zKey=None)
+GalCluster(filename=None, RAKey="RA", DECKey="DEC", method="sigma", sigmas=[5,10], multi_processing=True, mute_plots=False, SNlimit=[5,5],min_c_size=3,zKey=None)
 
     ### Input Parameters
 
