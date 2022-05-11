@@ -216,7 +216,7 @@ def clusterFun(RA, DEC, sigma, SNsigma, SNlimit, min_c_size, ODSigma, Z):
     return clusterCands, ODRs
 
 
-def galcluster(filename=None, RAKey="RA", DECKey="DEC", method="sigma", sigmas=[5, 10], multi_processing=True, mute_plots=False, SNlimit=[5, 5], min_c_size=3, zKey=None):
+def GalCluster(filename=None, RAKey="RA", DECKey="DEC", method="sigma", sigmas=[5, 10], multi_processing=True, mute_plots=False, SNlimit=[5, 5], min_c_size=3, zKey=None):
     """
     Automated Identification of Galaxy Clusters
     galcluster v0.1
@@ -398,7 +398,7 @@ def galcluster(filename=None, RAKey="RA", DECKey="DEC", method="sigma", sigmas=[
         avg_density = N_sources/((max(RA)-min(RA))*(max(DEC)-min(DEC)))
         start1 = time.time()
 
-        square_size = 5*np.sqrt(20/avg_density)
+        square_size = 15*np.sqrt(20/avg_density)
         if method == "sigma":
             sigmaList = np.empty(len(sigmas), dtype=object)
             if multi_processing:
@@ -522,8 +522,8 @@ def galcluster(filename=None, RAKey="RA", DECKey="DEC", method="sigma", sigmas=[
                         map(lambda i: "#" + "%06x" % random.randint(0x333333, 0x555555), range(n)))
                     colors5 = color_generator(len(clusterList[i]))
 
-                    meshRA, meshDEC = np.meshgrid(np.linspace(min(RA), max(RA), 2*round(
-                        np.sqrt(len(RA)))), np.linspace(min(DEC), max(DEC), 2*round(np.sqrt(len(DEC)))))
+                    meshRA, meshDEC = np.meshgrid(np.linspace(min(RA), max(RA), int(2*round(
+                        np.sqrt(len(RA))))), np.linspace(min(DEC), max(DEC), int(2*round(np.sqrt(len(DEC))))))
                     interp = interpolate.NearestNDInterpolator(
                         list(zip(RA, DEC)), SignalToNoiseList[i])
                     intSN = interp(meshRA, meshDEC)
@@ -562,7 +562,7 @@ def galcluster(filename=None, RAKey="RA", DECKey="DEC", method="sigma", sigmas=[
                     plt.ylabel("dec [deg]", fontsize=14)
                     cbar.ax.get_yaxis().labelpad = 15
                     cbar.ax.set_ylabel("S/N", rotation=90, fontsize=14)
-                    plt.title("Signal to Noise ratio of $\Sigma_{%d}$" % (
+                    plt.title("Signal to Noise ratio of $\mathrm{log}_{10}\Sigma_{%d}$" % (
                         sigmas[i]), fontsize=18)
                     plt.figure()
                     plt.plot(np.log10(
@@ -586,7 +586,7 @@ def galcluster(filename=None, RAKey="RA", DECKey="DEC", method="sigma", sigmas=[
                     plt.title(
                         "Histogram of $\mathrm{log}_{10}\Sigma_{%d}$" % (sigmas[i]), fontsize=18)
                     plt.xlabel(
-                        "$\mathrm{log}_{10}\Sigma_{%d}/\mathrm{deg}^{-2}$" % (sigmas[i]), fontsize=14)
+                        "$\mathrm{log}_{10}(\Sigma_{%d}[\mathrm{deg}^{-2}])$" % (sigmas[i]), fontsize=14)
                     plt.ylabel("N", fontsize=14)
                     if zKey != None:
                         if i == 0:
@@ -810,7 +810,7 @@ def galcluster(filename=None, RAKey="RA", DECKey="DEC", method="sigma", sigmas=[
                                  np.mean(clusterCands[i][0])+0.1*(max(RA)-min(RA)), min(clusterCands[i][1])-0.05*(max(DEC)-min(DEC))], color=colors[i])
                 else:
                     plt.annotate("#{0:d}".format(i+1), [
-                                 np.mean(clusterCands[i][0])+0.1*(max(RA)-min(RA)), np.mean(clusterCands[i][1])-0.05*(max(DEC)-min(DEC))], color=colors[i])
+                                 np.mean(clusterCands[i][0])+0.05*(max(RA)-min(RA)), np.mean(clusterCands[i][1])-0.05*(max(DEC)-min(DEC))], color=colors[i])
             plt.xlim([max(RA), min(RA)])
             plt.ylim([min(DEC), max(DEC)])
             plt.ylabel("DEC [deg]",fontsize=14)
