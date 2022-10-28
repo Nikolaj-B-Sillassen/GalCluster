@@ -4,7 +4,7 @@ Synthesis project of Nikolaj Bjerregaard Sillassen, Spring 2022 at DTU
 A program to identify cluster candidates given an astrophysical dataset in .fits format.
 Can be run either as an interactive program, or as a function by inputting the necessary variables.
 
-Two methods of identification, SigmaN and K_means.
+Two methods of identification, SigmaN and DBSCAN.
 SigmaN uses the distance between each source and the N'th nearest neighbor, following:
 SigmaN = N/(Pi d_(Nth neighbor)^2)
 Whereas DBSCAN uses DBSCAN clustering [SKLEARN Documentation](https://scikit-learn.org/stable/modules/generated/sklearn.cluster.DBSCAN.html).
