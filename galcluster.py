@@ -12,6 +12,17 @@ import multiprocessing as mp
 import sys
 from sklearn import cluster,neighbors
 
+class clusterCandidate:
+    """
+    Class containing cluster candidates, and their important parameters
+    """
+    def __init__(self,number,RA,DEC,z,sigma,SNsigma):
+        self.number = number
+        self.RA = RA
+        self.DEC = DEC
+        self.z = z
+        self.sigma = sigma
+        self.SNsigma = SNsigma
 
 def sigmaCalcFun(data):
     """
@@ -46,27 +57,15 @@ def sigmaCalcFun(data):
     i = 0
     sigmaArray = np.zeros([len(sigmas[0]), len(RA)])
     total_time = 0
-    while i <= len(RA)-1:
-        start = time.time()
-        [squareCenterRA, squareCenterDEC] = [
-            RA[i], DEC[i]]  # Find center of square window
-        [lowRAID, highRAID, lowDECID, highDECID] = [RA >= squareCenterRA - square_size, RA <= squareCenterRA +
-                                                    square_size, DEC >= squareCenterDEC - square_size, DEC <= squareCenterDEC + square_size]
-        SourcesInSquare = lowRAID & highRAID & lowDECID & highDECID
-        distances = np.sqrt((RA[SourcesInSquare]-squareCenterRA)
-                            ** 2+(DEC[SourcesInSquare]-squareCenterDEC)**2)
-        sortedDistances = np.sort(distances)
-        for j in range(len(sigmas[0])):
-            sigma = sigmas[0][j]
-            if sum(SourcesInSquare) >= sigma+1:
-                sigmaArray[j][i] = sigma/(np.pi*sortedDistances[int(sigma)]**2)
-            else:
-                sigmaArray[j][i] = float('NaN')
-        stop = time.time()
-        total_time += stop-start
-        if i % 100 == 0:
-            print("Progress: {0:.2f}%".format(i/(len(RA)-1)*100))
-            print("Elapsed time: {0:.1f}s".format(total_time))
+    X = np.array([RA, DEC])
+    X = np.transpose(X)
+    for sigma in sigmas[0]:
+        neigh = neighbors.NearestNeighbors(n_neighbors=int(sigma),n_jobs=-1).fit(X)
+        dists, ind = neigh.kneighbors(X)
+        distances = [dists[i][int(sigma)-1] for i in range(len(dists))]
+        sigmat = int(sigma)/(np.pi*np.asarray(distances)**2)
+        #print("\nMax {}: ".format(int(sigma)),max(sigmat),", min {}:".format(int(sigma)),min(sigmat) )
+        sigmaArray[i]=sigmat
         i += 1
     return sigmaArray
 
@@ -216,16 +215,16 @@ def clusterFun(RA, DEC, sigma, SNsigma, SNlimit, min_c_size, ODSigma, Z):
     return clusterCands, ODRs
 
 
-def GalCluster(filename=None, RAKey="RA", DECKey="DEC", method="sigma", sigmas=[5, 10], multi_processing=True, mute_plots=False, SNlimit=[5, 5], min_c_size=3, zKey=None):
+def GalCluster(filename=None, RAKey="RA", DECKey="DEC", method="sigma", sigmas=[5, 10], mute_plots=False, SNlimit=[5, 5], min_c_size=3, zKey=None):
     """
     Automated Identification of Galaxy Clusters
-    galcluster v0.1
+    GalCluster v0.2
 
     Program created during Synthesis Project at DTU Space, in spring 2022
 
     Function description:
 
-    galcluster(filename=None, RAKey="RA", DECKey="DEC", method="sigma", sigmas=[5,10], multi_processing=True, mute_plots=False, SNlimit=[5,7],min_c_size=3,zKey=None)
+    GalCluster(filename=None, RAKey="RA", DECKey="DEC", method="sigma", sigmas=[5,10], multi_processing=True, mute_plots=False, SNlimit=[5,7],min_c_size=3,zKey=None)
 
     ### Input Parameters
 
@@ -246,12 +245,6 @@ def GalCluster(filename=None, RAKey="RA", DECKey="DEC", method="sigma", sigmas=[
           list of sigmas, to use for overdensity calculations, default is 
           [5,10]
 
-      multi_processing : bool, optional 
-          If true (default) enables parallelization using multiprocessing, 
-          if not no parallelization will be used, which is much slower 
-          must be run under if __name__ == "__main__": protection when using 
-          multiprocessing 
-
       mute_plots : bool, optional 
           If false (default), plots are created, otherwise plots are muted. 
 
@@ -263,10 +256,6 @@ def GalCluster(filename=None, RAKey="RA", DECKey="DEC", method="sigma", sigmas=[
 
       zKey : str, optional
           keyword for column containing redshift
-
-      z_cut : positive float, optional 
-          minimum redshift of the sources that are being clustered, 1.5 is 
-          default. 
 
      ### Returns
 
@@ -285,13 +274,7 @@ def GalCluster(filename=None, RAKey="RA", DECKey="DEC", method="sigma", sigmas=[
           SignalToNoiseSigmas : ndarray
               array containing all signal to noise values of all sigmas, for 
               all pre-selected sources
-      clusterList : list
-          List is not present if keyword for redshift is not given
-          First Dimension : list
-              List of cluster candidate lists, for all values of input sigmas
-          Second Dimension : list
-              [RA,DEC,Z,Sigma,SignalToNoiseSigma] for all sources in the
-              candidates
+      clusterList : list of clusterCandidate classes
       ODRlist : list
           First Dimension : list
               List of overdensity region lists, for all input sigmas
@@ -401,70 +384,11 @@ def GalCluster(filename=None, RAKey="RA", DECKey="DEC", method="sigma", sigmas=[
         square_size = 15*np.sqrt(20/avg_density)
         if method == "sigma":
             sigmaList = np.empty(len(sigmas), dtype=object)
-            if multi_processing:
-                if N_sources/mp.cpu_count() > 10000:
-                    N_iters = round(N_sources/10000)
-                    sigmaTotal = np.empty(len(sigmas), dtype=object)
-                    RASplittemp, DECSplittemp = np.array_split(
-                        RA, N_iters), np.array_split(DEC, N_iters)
-                    print("Starting overdensity calculation")
-                    for j in range(N_iters):
-                        RASplit, DECSplit = np.array_split(
-                            RASplittemp[j], mp.cpu_count()), np.array_split(DECSplittemp[j], mp.cpu_count())
-                        sigmastruct = list(np.asarray(
-                            [sigma*np.ones(mp.cpu_count()) for sigma in sigmas]).T)
-                        dataStruct = np.array(np.transpose(
-                            [RASplit, DECSplit, square_size*np.ones(mp.cpu_count()), sigmastruct]), dtype=object)
-                        dataStruct = np.hstack([dataStruct, sigmastruct])
-                        with mp.Pool(mp.cpu_count()) as p:
-                            sigmastemp = p.map(sigmaCalcFun, dataStruct)
-                            for k in range(len(sigmastemp)):
-                                if k == 0:
-                                    for p in range(len(sigmas)):
-                                        sigmaTotal[p] = np.array(sigmastemp[0][p],dtype=float)
-                                else:
-                                    for p in range(len(sigmas)):
-                                        sigmaTotal[p] = np.concatenate(
-                                            (sigmaTotal[p], sigmastemp[k][p]))
-                            stop = time.time()
-                        if j == 0:
-                            for k in range(len(sigmas)):
-                                sigmaList[k] = sigmaTotal[k]
-                        else:
-                            for k in range(len(sigmas)):
-                                sigmaList[k] = np.concatenate((sigmaList[k],sigmaTotal[k]))
-                        print("Progress: {0:.2f}%, time: {1:.2f}s".format(
-                            (j+1)/(N_sources/10000)*100, stop-start1))
-
-                else:
-                    RASplit, DECSplit = np.array_split(
-                        RA, mp.cpu_count()), np.array_split(DEC, mp.cpu_count())
-                    sigmastruct = list(np.asarray(
-                        [sigma*np.ones(mp.cpu_count()) for sigma in sigmas]).T)
-                    dataStruct = np.array(np.transpose(
-                        [RASplit, DECSplit, square_size*np.ones(mp.cpu_count()), sigmastruct]), dtype=object)
-                    print("Starting overdensity calculations")
-                    with mp.Pool(mp.cpu_count()) as p:
-                        sigmastemp = p.map(sigmaCalcFun, dataStruct)
-                        for j in range(len(sigmastemp)):
-                            if j == 0:
-                                for k in range(len(sigmas)):
-                                    sigmaList[k] = sigmastemp[0][k]
-                            else:
-                                for k in range(len(sigmas)):
-                                    sigmaList[k] = np.concatenate(
-                                        (sigmaList[k], sigmastemp[j][k]))
-                        stop = time.time()
-                        print("Done calculating densities for Sigma")
-                        print("Total calculation time: {0:.2f}s".format(
-                            stop-start1))
-
-            else:
-                dataStruct = [RA, DEC, square_size]
-                sigmasTemp = sigmaCalcFun(dataStruct)
-                sigmaList.append(sigmasTemp)
-                stop = time.time()
-                print("Calculation time: {0:.2f}s".format(stop-start1))
+            dataStruct = [RA, DEC, square_size, sigmas]
+            sigmasTemp = sigmaCalcFun(dataStruct)
+            sigmaList = sigmasTemp
+            stop = time.time()
+            print("Calculation time: {0:.2f}s".format(stop-start1))
 
             # Clustering of sigma overdensities
             histList = []
