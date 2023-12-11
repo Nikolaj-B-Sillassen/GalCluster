@@ -1,4 +1,4 @@
-![GalCluster-logo](https://nikolaj-b-sillassen.github.io/public/GalCluster.png)
+[GalCluster-logo](GalCluster.png)
 # GalCluster
 Synthesis project of Nikolaj Bjerregaard Sillassen, Spring 2022 at DTU
 
